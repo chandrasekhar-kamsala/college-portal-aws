@@ -1,0 +1,72 @@
+# ========================================================
+# Development Docker Compose Configuration
+# Use this when you want direct host access to backend (8080)
+# and MySQL database (3306) for debugging tools or local testing.
+# Command: docker compose -f docker-compose.dev.yml up -d --build
+# ========================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: college-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-college_root_secure_pass_2026}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-college_db}
+      MYSQL_USER: ${MYSQL_USER:-college_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-college_user_secure_pass_2026}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    networks:
+      - college-dev-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: college-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-college_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-college_user}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-college_user_secure_pass_2026}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - college-dev-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: college-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - college-dev-network
+
+volumes:
+  mysql_dev_data:
+    name: college_mysql_dev_data
+
+networks:
+  college-dev-network:
+    name: college-dev-network
+    driver: bridge
