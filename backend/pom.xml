@@ -54,11 +54,11 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- In-memory H2 Database for unit and integration testing without live MySQL -->
+        <!-- In-memory H2 Database for unit/integration testing and zero-config local runs -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Spring Boot Starter Test for JUnit 5, Mockito and MockMvc -->
