@@ -4,6 +4,34 @@ A full-stack, containerized **College Administration and Student Management Info
 
 Designed for high reliability, security, responsive user experience, and beginner-friendly deployment on both local development environments and **Ubuntu on AWS EC2**.
 
+## Current authentication and data policy
+
+- Compose reads all database, admin, and JWT secrets from a local `.env` file. Copy
+  `.env.example` to `.env` and replace every placeholder before starting.
+- The backend creates one initial admin account on first startup only. Existing admin
+  credentials are preserved on restart; there is no public admin-registration endpoint.
+- Students are created by an authenticated admin and remain inactive until they use
+  the first-time password setup flow. The password is stored as a BCrypt hash.
+- The initial activation flow intentionally uses the register number without OTP,
+  email, or identity verification. Knowing a register number is therefore not proof
+  of identity and the flow must not be treated as takeover-resistant.
+- No demo students, marks, attendance, or hall tickets are created automatically.
+  Add real records through the admin portal.
+
+### Safe Docker workflow
+
+```bash
+cp .env.example .env
+# edit .env and replace all placeholders
+docker compose config
+docker compose up -d --build
+docker compose ps
+docker compose logs --tail=200
+```
+
+Stop and restart with `docker compose down` and `docker compose up -d`; do not use
+`docker compose down -v`, because the named MySQL volume contains application data.
+
 ---
 
 ## 📑 Table of Contents

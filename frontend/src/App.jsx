@@ -1,232 +1,86 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Navbar';
-import Dashboard from './components/Dashboard';
-import StudentTable from './components/StudentTable';
-import StudentModal from './components/StudentModal';
-import StudentDetailModal from './components/StudentDetailModal';
-import DeleteConfirmModal from './components/DeleteConfirmModal';
-import Toast from './components/Toast';
-import { api } from './services/api';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { setTokenProvider } from './services/api';
+import { RequireAuth, RedirectIfAuth } from './components/RouteGuards';
+
+// Pages
+import LandingPage          from './pages/LandingPage';
+import AdminLoginPage       from './pages/AdminLoginPage';
+import StudentActivatePage  from './pages/StudentActivatePage';
+import StudentLoginPage     from './pages/StudentLoginPage';
+
+// Admin shell + pages
+import AdminLayout          from './pages/admin/AdminLayout';
+import AdminDashboardPage   from './pages/admin/AdminDashboardPage';
+import AdminStudentsPage    from './pages/admin/AdminStudentsPage';
+import AdminAttendancePage  from './pages/admin/AdminAttendancePage';
+import AdminMarksPage       from './pages/admin/AdminMarksPage';
+import AdminHallTicketsPage from './pages/admin/AdminHallTicketsPage';
+
+// Student shell + pages
+import StudentLayout         from './pages/student/StudentLayout';
+import StudentDashboardPage  from './pages/student/StudentDashboardPage';
+import StudentAttendancePage from './pages/student/StudentAttendancePage';
+import StudentMarksPage      from './pages/student/StudentMarksPage';
+import StudentHallTicketsPage from './pages/student/StudentHallTicketsPage';
+import StudentSubjectsPage from './pages/student/StudentSubjectsPage';
+
 import './App.css';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [students, setStudents] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isBackendOnline, setIsBackendOnline] = useState(true);
-
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('ALL');
-
-  // Modals state
-  const [studentModal, setStudentModal] = useState({ isOpen: false, student: null });
-  const [detailModal, setDetailModal] = useState({ isOpen: false, student: null });
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, student: null });
-
-  // Toast notifications
-  const [toasts, setToasts] = useState([]);
-
-  const addToast = useCallback((message, type = 'success', title = '') => {
-    const id = Date.now() + Math.random().toString(36).substring(2, 6);
-    setToasts((prev) => [...prev, { id, message, type, title }]);
-  }, []);
-
-  const dismissToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // Fetch student directory data
-  const loadStudents = useCallback(async () => {
-    try {
-      const data = await api.getStudents(departmentFilter, searchTerm);
-      setStudents(data);
-      setIsBackendOnline(true);
-    } catch (err) {
-      console.error('Failed to load students:', err);
-      setIsBackendOnline(false);
-      throw err;
-    }
-  }, [departmentFilter, searchTerm]);
-
-  // Fetch dashboard statistics
-  const loadStats = useCallback(async () => {
-    try {
-      const data = await api.getDashboardStats();
-      setStats(data);
-      setIsBackendOnline(true);
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-      setIsBackendOnline(false);
-      throw err;
-    }
-  }, []);
-
-  // Comprehensive refresh
-  const refreshAllData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await Promise.all([loadStudents(), loadStats()]);
-    } catch (err) {
-      setError(err.message || 'Could not connect to College Portal Backend Service.');
-    } finally {
-      setLoading(false);
-    }
-  }, [loadStudents, loadStats]);
-
-  // Initial load
+/** Wire token provider so api.js always sends the latest JWT. */
+function TokenWirer() {
+  const { token } = useAuth();
   useEffect(() => {
-    refreshAllData();
-  }, [refreshAllData]);
+    setTokenProvider(() => token);
+  }, [token]);
+  return null;
+}
 
-  // Periodic health check ping
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const healthy = await api.checkHealth();
-      setIsBackendOnline(healthy);
-    }, 25000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Modal handlers
-  const handleOpenAddModal = () => {
-    setStudentModal({ isOpen: true, student: null });
-  };
-
-  const handleOpenEditModal = (student) => {
-    setStudentModal({ isOpen: true, student });
-  };
-
-  const handleOpenDetailModal = (student) => {
-    setDetailModal({ isOpen: true, student });
-  };
-
-  const handleOpenDeleteModal = (student) => {
-    setDeleteModal({ isOpen: true, student });
-  };
-
-  // Student CRUD submissions
-  const handleSaveStudent = async (studentData) => {
-    if (studentModal.student) {
-      // Update existing
-      await api.updateStudent(studentModal.student.id, studentData);
-      addToast(
-        `Successfully updated record for "${studentData.fullName}".`,
-        'success',
-        'Student Updated'
-      );
-    } else {
-      // Create new
-      await api.createStudent(studentData);
-      addToast(
-        `Enrolled new student "${studentData.fullName}" in ${studentData.department}.`,
-        'success',
-        'Student Enrolled'
-      );
-    }
-
-    // Refresh UI after modification
-    await Promise.all([loadStudents(), loadStats()]);
-  };
-
-  const handleConfirmDelete = async (id) => {
-    const studentToDelete = deleteModal.student;
-    try {
-      await api.deleteStudent(id);
-      addToast(
-        `Student "${studentToDelete?.fullName || 'record'}" has been permanently removed.`,
-        'success',
-        'Record Deleted'
-      );
-      // Refresh UI after delete
-      await Promise.all([loadStudents(), loadStats()]);
-    } catch (err) {
-      addToast(
-        err.message || 'Failed to delete student record.',
-        'error',
-        'Delete Failed'
-      );
-      throw err;
-    }
-  };
-
+function AppRoutes() {
   return (
-    <div className="app-container">
-      {/* Top Navigation */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenAddModal={handleOpenAddModal}
-        isBackendOnline={isBackendOnline}
-      />
+    <>
+      <TokenWirer />
+      <Routes>
+        {/* Landing */}
+        <Route path="/" element={<RedirectIfAuth><LandingPage /></RedirectIfAuth>} />
 
-      {/* Main Page Content */}
-      <main className="main-content">
-        {activeTab === 'dashboard' ? (
-          <Dashboard
-            stats={stats}
-            loading={loading}
-            error={error}
-            onRefresh={refreshAllData}
-            onOpenAddModal={handleOpenAddModal}
-            onViewStudent={handleOpenDetailModal}
-            onNavigateToStudents={() => setActiveTab('students')}
-          />
-        ) : (
-          <StudentTable
-            students={students}
-            loading={loading}
-            error={error}
-            departmentFilter={departmentFilter}
-            setDepartmentFilter={setDepartmentFilter}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            onRefresh={loadStudents}
-            onOpenAddModal={handleOpenAddModal}
-            onViewStudent={handleOpenDetailModal}
-            onEditStudent={handleOpenEditModal}
-            onDeleteStudent={handleOpenDeleteModal}
-          />
-        )}
-      </main>
+        {/* Auth pages */}
+        <Route path="/admin/login"      element={<RedirectIfAuth><AdminLoginPage /></RedirectIfAuth>} />
+        <Route path="/student/activate" element={<RedirectIfAuth><StudentActivatePage /></RedirectIfAuth>} />
+        <Route path="/student/login"    element={<RedirectIfAuth><StudentLoginPage /></RedirectIfAuth>} />
 
-      {/* Footer */}
-      <footer className="portal-footer">
-        <div>
-          <strong>College Portal</strong> • Higher Education Information Management System
-        </div>
-        <div>
-          Powered by React 18, Spring Boot 3, MySQL 8 &amp; Docker
-        </div>
-      </footer>
+        {/* Admin portal */}
+        <Route path="/admin" element={<RequireAuth role="ADMIN"><AdminLayout /></RequireAuth>}>
+          <Route index             element={<AdminDashboardPage />} />
+          <Route path="students"   element={<AdminStudentsPage />} />
+          <Route path="attendance" element={<AdminAttendancePage />} />
+          <Route path="marks"      element={<AdminMarksPage />} />
+          <Route path="hall-tickets" element={<AdminHallTicketsPage />} />
+        </Route>
 
-      {/* Modals */}
-      <StudentModal
-        isOpen={studentModal.isOpen}
-        onClose={() => setStudentModal({ isOpen: false, student: null })}
-        onSubmit={handleSaveStudent}
-        student={studentModal.student}
-      />
+        {/* Student portal */}
+        <Route path="/student" element={<RequireAuth role="STUDENT"><StudentLayout /></RequireAuth>}>
+          <Route index              element={<StudentDashboardPage />} />
+          <Route path="attendance"  element={<StudentAttendancePage />} />
+          <Route path="marks"       element={<StudentMarksPage />} />
+          <Route path="hall-tickets" element={<StudentHallTicketsPage />} />
+          <Route path="subjects" element={<StudentSubjectsPage />} />
+        </Route>
 
-      <StudentDetailModal
-        isOpen={detailModal.isOpen}
-        onClose={() => setDetailModal({ isOpen: false, student: null })}
-        student={detailModal.student}
-        onEdit={handleOpenEditModal}
-      />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
+}
 
-      <DeleteConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, student: null })}
-        onConfirm={handleConfirmDelete}
-        student={deleteModal.student}
-      />
-
-      {/* Toast Notifications */}
-      <Toast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

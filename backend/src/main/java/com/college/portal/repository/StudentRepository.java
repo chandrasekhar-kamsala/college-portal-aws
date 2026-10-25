@@ -19,16 +19,29 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByEmailAndIdNot(String email, Long id);
 
+    Optional<Student> findByRegisterNumber(String registerNumber);
+
+    boolean existsByRegisterNumber(String registerNumber);
+
+    boolean existsByRegisterNumberAndIdNot(String registerNumber, Long id);
+
+    long countByActivatedTrue();
+
+    long countByActivatedFalse();
+
     List<Student> findByDepartmentIgnoreCase(String department);
 
     @Query("SELECT s FROM Student s WHERE " +
            "LOWER(s.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(s.email) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+           "LOWER(s.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "(s.registerNumber IS NOT NULL AND LOWER(s.registerNumber) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Student> searchStudents(@Param("keyword") String keyword);
 
     @Query("SELECT s FROM Student s WHERE " +
            "(:department IS NULL OR LOWER(s.department) = LOWER(:department)) AND " +
-           "(:search IS NULL OR LOWER(s.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(s.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(s.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(s.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(s.registerNumber IS NOT NULL AND LOWER(s.registerNumber) LIKE LOWER(CONCAT('%', :search, '%')))) " +
            "ORDER BY s.id DESC")
     List<Student> filterAndSearchStudents(@Param("department") String department, @Param("search") String search);
 

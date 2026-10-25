@@ -26,7 +26,18 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import com.college.portal.security.JwtService;
+
+import java.util.List;
+
 @WebMvcTest(StudentController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class StudentControllerTest {
 
     @Autowired
@@ -34,6 +45,9 @@ class StudentControllerTest {
 
     @MockBean
     private StudentService studentService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Autowired
     private ObjectMapper objectMapper;

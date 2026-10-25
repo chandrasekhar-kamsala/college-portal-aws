@@ -28,11 +28,14 @@ export default function StudentModal({
   const isEdit = Boolean(student);
 
   const [formData, setFormData] = useState({
+    registerNumber: '',
     fullName: '',
     email: '',
     department: 'Computer Science',
     academicYear: '1st Year',
+    semester: 'Semester 7',
     phoneNumber: '',
+    photoData: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -42,19 +45,25 @@ export default function StudentModal({
   useEffect(() => {
     if (student) {
       setFormData({
+        registerNumber: student.registerNumber || '',
         fullName: student.fullName || '',
         email: student.email || '',
         department: student.department || 'Computer Science',
         academicYear: student.academicYear || '1st Year',
+        semester: student.semester || '',
         phoneNumber: student.phoneNumber || '',
+        photoData: student.photoData || '',
       });
     } else {
       setFormData({
+        registerNumber: '',
         fullName: '',
         email: '',
         department: 'Computer Science',
         academicYear: '1st Year',
+        semester: 'Semester 7',
         phoneNumber: '',
+        photoData: '',
       });
     }
     setErrors({});
@@ -65,6 +74,12 @@ export default function StudentModal({
 
   const validate = () => {
     const newErrors = {};
+
+    if (!formData.registerNumber.trim()) {
+      newErrors.registerNumber = 'College register number is required';
+    } else if (formData.registerNumber.trim().length < 3) {
+      newErrors.registerNumber = 'Register number must be at least 3 characters';
+    }
 
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
@@ -86,6 +101,10 @@ export default function StudentModal({
       newErrors.academicYear = 'Academic year is required';
     }
 
+    if (!formData.semester.trim()) {
+      newErrors.semester = 'Semester is required';
+    }
+
     if (formData.phoneNumber && formData.phoneNumber.trim().length > 0) {
       if (!/^[+0-9\s\-().]{7,25}$/.test(formData.phoneNumber.trim())) {
         newErrors.phoneNumber = 'Please provide a valid phone number format (e.g. +1-555-0192)';
@@ -105,11 +124,14 @@ export default function StudentModal({
     setSubmitting(true);
     try {
       await onSubmit({
+        registerNumber: formData.registerNumber.trim().toUpperCase(),
         fullName: formData.fullName.trim(),
         email: formData.email.trim().toLowerCase(),
         department: formData.department.trim(),
         academicYear: formData.academicYear.trim(),
+        semester: formData.semester.trim() || null,
         phoneNumber: formData.phoneNumber.trim() || null,
+        photoData: formData.photoData || null,
       });
       onClose();
     } catch (err) {
@@ -167,6 +189,26 @@ export default function StudentModal({
             )}
 
             <div className="form-group">
+              <label htmlFor="student-registerNumber" className="form-label">
+                College Register Number <span className="required">*</span>
+              </label>
+              <input
+                id="student-registerNumber"
+                type="text"
+                className={`form-input ${errors.registerNumber ? 'error' : ''}`}
+                placeholder="e.g. CSE2026001"
+                value={formData.registerNumber}
+                onChange={(e) => {
+                  setFormData({ ...formData, registerNumber: e.target.value.toUpperCase() });
+                  if (errors.registerNumber) setErrors({ ...errors, registerNumber: null });
+                }}
+                disabled={submitting}
+                autoFocus={!isEdit}
+              />
+              {errors.registerNumber && <span className="form-error">{errors.registerNumber}</span>}
+            </div>
+
+            <div className="form-group">
               <label htmlFor="student-fullName" className="form-label">
                 Full Name <span className="required">*</span>
               </label>
@@ -181,7 +223,7 @@ export default function StudentModal({
                   if (errors.fullName) setErrors({ ...errors, fullName: null });
                 }}
                 disabled={submitting}
-                autoFocus
+                autoFocus={isEdit}
               />
               {errors.fullName && <span className="form-error">{errors.fullName}</span>}
             </div>
@@ -248,6 +290,25 @@ export default function StudentModal({
             </div>
 
             <div className="form-group">
+              <label htmlFor="student-semester" className="form-label">
+                Semester <span className="required">*</span>
+              </label>
+              <input
+                id="student-semester"
+                type="text"
+                className={`form-input ${errors.semester ? 'error' : ''}`}
+                placeholder="e.g. Semester 1"
+                value={formData.semester}
+                onChange={(e) => {
+                  setFormData({ ...formData, semester: e.target.value });
+                  if (errors.semester) setErrors({ ...errors, semester: null });
+                }}
+                disabled={submitting}
+              />
+              {errors.semester && <span className="form-error">{errors.semester}</span>}
+            </div>
+
+            <div className="form-group">
               <label htmlFor="student-phone" className="form-label">
                 Phone Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</span>
               </label>
@@ -264,6 +325,39 @@ export default function StudentModal({
                 disabled={submitting}
               />
               {errors.phoneNumber && <span className="form-error">{errors.phoneNumber}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="student-photo" className="form-label">
+                Student Photo <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional, JPG/PNG/WEBP up to 3 MB)</span>
+              </label>
+              <input
+                id="student-photo"
+                type="file"
+                className={`form-input ${errors.photoData ? 'error' : ''}`}
+                accept="image/jpeg,image/png,image/webp"
+                disabled={submitting}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 3 * 1024 * 1024) {
+                    setErrors({ ...errors, photoData: 'Photo must be smaller than 3 MB' });
+                    e.target.value = '';
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setFormData({ ...formData, photoData: reader.result });
+                    setErrors({ ...errors, photoData: null });
+                  };
+                  reader.onerror = () => setErrors({ ...errors, photoData: 'Unable to read this photo' });
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {formData.photoData && (
+                <img className="student-photo-preview" src={formData.photoData} alt="Student preview" />
+              )}
+              {errors.photoData && <span className="form-error">{errors.photoData}</span>}
             </div>
           </div>
 

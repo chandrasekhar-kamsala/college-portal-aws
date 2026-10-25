@@ -192,10 +192,10 @@ nano .env
 
 Inside the `nano` editor, set strong, unique passwords:
 ```env
-MYSQL_ROOT_PASSWORD=SuperSecretRootPass987#
+MYSQL_ROOT_PASSWORD=<generate-a-unique-root-password>
 MYSQL_DATABASE=college_db
 MYSQL_USER=college_user
-MYSQL_PASSWORD=SuperSecretUserPass456#
+MYSQL_PASSWORD=<generate-a-unique-password>
 PORT=80
 ```
 * Press `Ctrl + O`, then press `Enter` to save.
